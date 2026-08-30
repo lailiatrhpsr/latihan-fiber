@@ -1,0 +1,4 @@
+# Abaikan file kredensial environment
+.env
+*.env
+pert3/.env
