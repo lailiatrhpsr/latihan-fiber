@@ -1,36 +1,24 @@
 package helper
 
 import (
-	"context"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 
 	"latihan-fiber/pert4/app/model"
 )
 
-// memberi batas timeout untuk eksekusi ke database
-func RequestContext(c *fiber.Ctx) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(c.UserContext(), 5*time.Second)
-}
-
-// membaca dan memvalidasi id integer dari URL /:id
 func ParamID(c *fiber.Ctx) (int, bool) {
 	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil || id < 1 {
-		return 0, false
-	}
-	return id, true
+	return id, err == nil
 }
 
-var allowedSortHelper = map[string]bool{
-	"id":    true,
-	"name":  true,
-	"grade": true,
+var allowedSort = map[string]bool{
+	"id": true, "name": true, "grade": true,
 }
 
+// ParseListQuery membaca query string dan memberi nilai bawaan yang aman.
 func ParseListQuery(c *fiber.Ctx) model.ListQuery {
 	q := model.ListQuery{
 		Page:  1,
@@ -50,7 +38,7 @@ func ParseListQuery(c *fiber.Ctx) model.ListQuery {
 	q.Search = strings.TrimSpace(c.Query("search"))
 
 	sortParam := c.Query("sort")
-	if allowedSortHelper[sortParam] {
+	if allowedSort[sortParam] {
 		q.Sort = sortParam
 	}
 
