@@ -12,25 +12,52 @@ import (
 	"latihan-fiber/pert4/app/service"
 	"latihan-fiber/pert4/config"
 	"latihan-fiber/pert4/database"
+	"latihan-fiber/pert4/helper"
+	"latihan-fiber/pert4/route"
 )
 
-// main hanya berisi urutan perakitan. Tidak ada logika bisnis,
-// tidak ada query, dan tidak ada satu pun handler di sini.
+const minSecretLength = 32
+
 func main() {
 	// 1. Konfigurasi dan logger
 	config.LoadEnv()
 	logger := config.NewLogger()
 
-	// 2. Database
+	// 2. JWT diperiksa SEBELUM server menyala
+	jwtSecret := config.GetEnv("JWT_SECRET", "")
+	if len(jwtSecret) < minSecretLength {
+		logger.Error("JWT_SECRET tidak diisi atau terlalu pendek",
+			slog.Int("minimal_karakter", minSecretLength))
+		os.Exit(1)
+	}
+
+	// 3. Database
 	pool := database.NewPostgresPool()
 	defer pool.Close()
 
-	// 3. Perakitan dari dalam ke luar: repository -> service
+	// 4. Perakitan dari dalam ke luar: repository -> service
 	studentRepository := repository.NewStudentRepository(pool)
 	studentService := service.NewStudentService(studentRepository, pool)
 
-	// 4. Aplikasi
-	app := config.NewApp(logger, studentService)
+	jwtManager := helper.NewJWTManager(
+		jwtSecret,
+		config.GetEnv("JWT_ISSUER", "praktikum-backend"),
+		time.Duration(config.GetEnvInt("JWT_ACCESS_TTL_MINUTES", 15))*time.Minute,
+	)
+	userRepository := repository.NewUserRepository(pool)
+	tokenRepository := repository.NewTokenRepository(pool)
+	authService := service.NewAuthService(
+		userRepository, tokenRepository, jwtManager,
+		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
+	)
+
+	// 5. Aplikasi
+	app := config.NewApp(logger, route.Dependencies{
+		Pool:           pool,
+		JWT:            jwtManager,
+		StudentService: studentService,
+		AuthService:    authService,
+	})
 	port := config.GetEnv("APP_PORT", "3000")
 
 	go func() {
@@ -41,8 +68,7 @@ func main() {
 	}()
 	logger.Info("server berjalan", slog.String("port", port))
 
-	// 5. Graceful shutdown: tunggu Ctrl+C, lalu beri waktu request
-	//    yang sedang berjalan untuk selesai.
+	// 6.  beri waktu request untuk selesai
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

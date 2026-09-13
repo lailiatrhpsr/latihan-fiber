@@ -15,10 +15,21 @@ import (
 // Register memasang seluruh middleware yang berlaku untuk semua route.
 // URUTAN PENTING: middleware dieksekusi sesuai urutan pemasangan, sama
 // seperti urutan requestid -> logger -> cors pada main.go yang lama.
-func Register(app *fiber.App, logger *slog.Logger) {
+func Register(app *fiber.App, logger *slog.Logger, allowedOrigins string) {
 	app.Use(requestid.New())       // 1. beri setiap request satu ID unik
 	app.Use(RequestLogger(logger)) // 2. catat setiap request (menggantikan logger bawaan Fiber)
-	app.Use(cors.New())            // 3. atur Cross-Origin Resource Sharing
+	app.Use(corsPolicy(allowedOrigins))            // 3. atur Cross-Origin Resource Sharing
+}
+
+func corsPolicy(allowedOrigins string) fiber.Handler {
+	if strings.TrimSpace(allowedOrigins) == "" {
+		allowedOrigins = "http://localhost:5173" 
+	}
+	return cors.New(cors.Config{
+		AllowOrigins: allowedOrigins,
+		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	})
 }
 
 // RequestLogger mencatat setiap request ke log terstruktur (JSON), dan
@@ -27,7 +38,7 @@ func Register(app *fiber.App, logger *slog.Logger) {
 func RequestLogger(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
-		err := c.Next() // serahkan ke middleware/handler berikutnya
+		err := c.Next()
 		requestID, _ := c.Locals("requestid").(string)
 		logger.Info("http_request",
 			slog.String("request_id", requestID),

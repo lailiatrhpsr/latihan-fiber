@@ -5,7 +5,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"latihan-fiber/pert4/app/service"
 	"latihan-fiber/pert4/helper"
 	"latihan-fiber/pert4/middleware"
 	"latihan-fiber/pert4/route"
@@ -13,14 +12,15 @@ import (
 
 // NewApp merakit aplikasi: membuat instance Fiber, memasang middleware,
 // lalu mendaftarkan route. File ini adalah tempat seluruh bagian bertemu.
-func NewApp(logger *slog.Logger, studentService *service.StudentService) *fiber.App {
+func NewApp(logger *slog.Logger, deps route.Dependencies) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      GetEnv("APP_NAME", "Tugas Mandiri - REST API Students (PostgreSQL)"),
 		ErrorHandler: newErrorHandler(logger),
+		BodyLimit: 1 * 1024 * 1024,
 	})
 
-	middleware.Register(app, logger)
-	route.Register(app, studentService)
+	middleware.Register(app, logger, GetEnv("ALLOWED_ORIGINS", ""))
+	route.Register(app, deps)
 
 	// Penampung terakhir untuk URL yang tidak dikenal.
 	app.Use(func(c *fiber.Ctx) error {
