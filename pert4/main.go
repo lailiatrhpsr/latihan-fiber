@@ -49,7 +49,7 @@ func main() {
 	permissions := helper.NewPermissionSet(rawPermissions)
 	logger.Info("permission dimuat", slog.Any("roles", permissions.KnownRoles()))
 	
-	studentService := service.NewStudentService(studentRepository, pool)
+	studentService := service.NewStudentService(studentRepository, pool, permissions)
 
 	jwtManager := helper.NewJWTManager(
 		jwtSecret,

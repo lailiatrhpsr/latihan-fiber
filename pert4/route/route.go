@@ -40,7 +40,7 @@ func Register(app *fiber.App, deps Dependencies) {
 		middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
 	
 	perms := deps.Permissions
-
+	// Hak dapat diputuskan tanpa melihat data -> middleware
 	students.Get("/",
 		middleware.RequirePermission(perms, "student:list"),
 		deps.StudentService.List)
@@ -50,7 +50,8 @@ func Register(app *fiber.App, deps Dependencies) {
 	students.Delete("/:id",
 		middleware.RequirePermission(perms, "student:delete"),
 		deps.StudentService.Delete)
-
+		
+	// Hak bergantung pada kepemilikan data -> diperiksa di service
 	students.Get("/:id", deps.StudentService.Get)
 	students.Put("/:id", deps.StudentService.Replace)
 	students.Patch("/:id", deps.StudentService.Patch)

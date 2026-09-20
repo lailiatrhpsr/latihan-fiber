@@ -8,6 +8,7 @@ type Student struct {
 	Name      string    `json:"name"`
 	Grade     float64   `json:"grade"`
 	IsActive  bool      `json:"is_active"`
+	OwnerID   int       `json:"owner_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -16,6 +17,7 @@ type CreateStudentRequest struct {
 	Name     string  `json:"name"`
 	Grade    float64 `json:"grade"`
 	IsActive bool    `json:"is_active"`
+	OwnerID   int    `json:"owner_id"`
 }
 
 type ReplaceStudentRequest struct {
@@ -23,6 +25,7 @@ type ReplaceStudentRequest struct {
 	Name     string  `json:"name"`
 	Grade    float64 `json:"grade"`
 	IsActive bool    `json:"is_active"`
+	OwnerID   int    `json:"owner_id"`
 }
 
 type PatchStudentRequest struct {
@@ -30,6 +33,7 @@ type PatchStudentRequest struct {
 	Name     *string  `json:"name,omitempty"`
 	Grade    *float64 `json:"grade,omitempty"`
 	IsActive *bool    `json:"is_active,omitempty"`
+	OwnerID   *int    `json:"owner_id,omitempty"`
 }
 
 type ListQuery struct {

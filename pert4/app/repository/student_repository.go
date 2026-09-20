@@ -99,7 +99,7 @@ func (r *studentRepository) FindAll(ctx context.Context, q model.ListQuery) ([]m
 	offset := (page - 1) * limit
 
 	dataQuery := fmt.Sprintf(
-		"SELECT id, nim, name, grade, is_active, created_at FROM students %s ORDER BY %s %s LIMIT $%d OFFSET $%d",
+		"SELECT id, nim, name, grade, is_active, owner_id, created_at FROM students %s ORDER BY %s %s LIMIT $%d OFFSET $%d",
 		whereClause, sortCol, orderDir, argIdx, argIdx+1,
 	)
 	args = append(args, limit, offset)
@@ -113,7 +113,7 @@ func (r *studentRepository) FindAll(ctx context.Context, q model.ListQuery) ([]m
 	students := make([]model.Student, 0)
 	for rows.Next() {
 		var s model.Student
-		if err := rows.Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.OwnerID, &s.CreatedAt); err != nil {
 			return nil, model.Meta{}, err
 		}
 		students = append(students, s)
@@ -136,8 +136,8 @@ func (r *studentRepository) FindAll(ctx context.Context, q model.ListQuery) ([]m
 
 func (r *studentRepository) FindByID(ctx context.Context, id int) (model.Student, error) {
 	var s model.Student
-	query := "SELECT id, nim, name, grade, is_active, created_at FROM students WHERE id = $1"
-	err := r.db.QueryRow(ctx, query, id).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt)
+	query := "SELECT id, nim, name, grade, is_active, owner_id, created_at FROM students WHERE id = $1"
+	err := r.db.QueryRow(ctx, query, id).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.OwnerID, &s.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return s, ErrNotFound
@@ -147,15 +147,19 @@ func (r *studentRepository) FindByID(ctx context.Context, id int) (model.Student
 	return s, nil
 }
 
+// Create menyimpan owner_id yang sudah ditetapkan oleh service dari
+// identitas pemanggil (lihat StudentService.Create) — bukan dari body
+// request, sehingga tidak bisa dipalsukan lewat mass assignment.
 func (r *studentRepository) Create(ctx context.Context, s model.Student) (model.Student, error) {
 	query := `
-		INSERT INTO students (nim, name, grade, is_active)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, nim, name, grade, is_active, created_at
+		INSERT INTO students (nim, name, grade, is_active, owner_id)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, nim, name, grade, is_active, owner_id, created_at
 	`
 	var created model.Student
-	err := r.db.QueryRow(ctx, query, s.NIM, s.Name, s.Grade, s.IsActive).Scan(
-		&created.ID, &created.NIM, &created.Name, &created.Grade, &created.IsActive, &created.CreatedAt,
+	err := r.db.QueryRow(ctx, query, s.NIM, s.Name, s.Grade, s.IsActive, s.OwnerID).Scan(
+		&created.ID, &created.NIM, &created.Name, &created.Grade, &created.IsActive,
+		&created.OwnerID, &created.CreatedAt,
 	)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -172,11 +176,12 @@ func (r *studentRepository) Update(ctx context.Context, s model.Student) (model.
 		UPDATE students
 		SET nim = $1, name = $2, grade = $3, is_active = $4
 		WHERE id = $5
-		RETURNING id, nim, name, grade, is_active, created_at
+		RETURNING id, nim, name, grade, is_active, owner_id, created_at
 	`
 	var updated model.Student
 	err := r.db.QueryRow(ctx, query, s.NIM, s.Name, s.Grade, s.IsActive, s.ID).Scan(
-		&updated.ID, &updated.NIM, &updated.Name, &updated.Grade, &updated.IsActive, &updated.CreatedAt,
+		&updated.ID, &updated.NIM, &updated.Name, &updated.Grade, &updated.IsActive,
+		&updated.OwnerID, &updated.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
